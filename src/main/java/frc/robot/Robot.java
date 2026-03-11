@@ -41,8 +41,11 @@ public class Robot extends LoggedRobot {
     SmartDashboard.putString("Robot", comments);
     // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
     // autonomous chooser on the dashboard.
-    m_robotContainer = comments.contains("AlgaeRobot") ? new AlgaeRobotContainer() :
-      comments.contains("CoralRobot") ? new CoralRobotContainer() : new FuelRobotContainer();
+    frc.lib.drivetrain.DrivetrainConfig config = comments.contains("FuelRobot") ? Robots.FUEL : Robots.CORAL;
+    m_robotContainer = comments.contains("FuelRobot") ?
+      new FuelRobotContainer(config, Fields.COMPETITION) :
+      comments.contains("CoralRobot") ? new CoralRobotContainer(config, Fields.COMPETITION) :
+      new RobotContainer(config, Fields.COMPETITION);
     releaseVersion = !comments.contains("dev-version");
   }
 
