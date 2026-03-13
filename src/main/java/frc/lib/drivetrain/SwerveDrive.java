@@ -33,6 +33,7 @@ import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
@@ -116,6 +117,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   private final double[] signalLogSpeeds = new double[3];
   private final double[] signalLogModuleStates = new double[8];
 
+  // Vision enable/disable (dashboard switch)
+  private boolean visionEnabled = true;
+
   // Simulation
   private Notifier simNotifier = null;
   private double lastSimTime;
@@ -197,6 +201,8 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         this);
 
     SignalLogger.start();
+
+    SmartDashboard.putBoolean("Vision Enabled", visionEnabled);
 
     if (Utils.isSimulation()) {
       startSimThread();
@@ -646,6 +652,14 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   }
 
   private void fuseVision(Pose2d pose, boolean fullLogCycle) {
+    visionEnabled = SmartDashboard.getBoolean("Vision Enabled", true);
+    Logger.recordOutput("Drive/VisionEnabled", visionEnabled);
+
+    if (!visionEnabled) {
+      Logger.recordOutput("Drive/PoseConfidence", PoseConfidence.DEAD_RECKONING.name());
+      return;
+    }
+
     int cycleMaxTagCount = 0;
     double cycleMinAmbiguity = 1.0;
     boolean anyAccepted = false;

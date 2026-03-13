@@ -19,6 +19,9 @@ import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.lib.elastic.Elastic;
+import frc.lib.elastic.ElasticNotification;
+import frc.lib.elastic.ElasticNotification.NotificationLevel;
 import frc.robot.Constants.VisionConstants;
 import frc.robot.Robot;
 
@@ -68,6 +71,11 @@ public class VisionSubsystem extends SubsystemBase {
                 // No new results, increment disconnect counter
                 disconnectCount++;
                 if (disconnectCount > DISCONNECT_THRESHOLD) {
+                    if (cameraConnected) {
+                        Elastic.sendNotification(
+                            new ElasticNotification(NotificationLevel.WARNING,
+                                "Camera Disconnected", "Vision camera lost — no frames for 1s"));
+                    }
                     cameraConnected = false;
                 }
             }
@@ -96,6 +104,11 @@ public class VisionSubsystem extends SubsystemBase {
         } catch (Exception e) {
             // Camera operation failed
             DriverStation.reportError("Vision camera error: " + e.getMessage(), false);
+            if (cameraConnected) {
+                Elastic.sendNotification(
+                    new ElasticNotification(NotificationLevel.ERROR,
+                        "Camera Error", "Vision camera error: " + e.getMessage()));
+            }
             cameraConnected = false;
             disconnectCount = DISCONNECT_THRESHOLD;
         }

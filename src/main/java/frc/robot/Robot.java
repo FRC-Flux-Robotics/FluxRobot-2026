@@ -12,10 +12,13 @@ import org.littletonrobotics.junction.wpilog.WPILOGReader;
 import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 
 import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.TimedRobot;  
+import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.lib.elastic.Elastic;
+import frc.lib.elastic.ElasticNotification;
+import frc.lib.elastic.ElasticNotification.NotificationLevel;
 
 /**
  * The methods in this class are called automatically corresponding to each mode, as described in
@@ -67,7 +70,10 @@ public class Robot extends LoggedRobot {
 
   /** This function is called once each time the robot enters Disabled mode. */
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+    Elastic.sendNotification(
+        new ElasticNotification(NotificationLevel.INFO, "Robot Disabled", "Robot is now disabled"));
+  }
 
   @Override
   public void disabledPeriodic() {}
@@ -76,6 +82,11 @@ public class Robot extends LoggedRobot {
   @Override
   public void autonomousInit() {
     m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+
+    Elastic.sendNotification(
+        new ElasticNotification(NotificationLevel.INFO, "Auto Started",
+            m_autonomousCommand != null ? "Running: " + m_autonomousCommand.getName() : "No auto selected"));
+    Elastic.selectTab("Autonomous");
 
     // schedule the autonomous command (example)
     if (m_autonomousCommand != null) {
@@ -96,6 +107,10 @@ public class Robot extends LoggedRobot {
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     }
+
+    Elastic.sendNotification(
+        new ElasticNotification(NotificationLevel.INFO, "Teleop Started", "Driver control active"));
+    Elastic.selectTab("Teleop");
   }
 
   /** This function is called periodically during operator control. */
