@@ -37,6 +37,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
@@ -119,6 +121,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
   // Vision enable/disable (dashboard switch)
   private boolean visionEnabled;
+
+  // Live-tunable steer PID (edit on SmartDashboard, applied to motors each cycle if changed)
+  private double dashSteerKP;
+  private double dashSteerKD;
 
   // Simulation
   private Notifier simNotifier = null;
@@ -207,6 +213,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     }
 
     SmartDashboard.putBoolean("Vision Enabled", visionEnabled);
+
+    dashSteerKP = config.activeSteerGains.kP;
+    dashSteerKD = config.activeSteerGains.kD;
+    SmartDashboard.putNumber("Drive/SteerKP", dashSteerKP);
+    SmartDashboard.putNumber("Drive/SteerKD", dashSteerKD);
 
     if (Utils.isSimulation()) {
       startSimThread();
@@ -555,6 +566,23 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   public void periodic() {
     periodicCycleCount++;
     boolean fullLogCycle = (periodicCycleCount % 10 == 0);
+
+    // Live steer PID tuning from dashboard
+    if (fullLogCycle) {
+      double newKP = SmartDashboard.getNumber("Drive/SteerKP", dashSteerKP);
+      double newKD = SmartDashboard.getNumber("Drive/SteerKD", dashSteerKD);
+      if (newKP != dashSteerKP || newKD != dashSteerKD) {
+        dashSteerKP = newKP;
+        dashSteerKD = newKD;
+        Slot0Configs newGains = config.activeSteerGains.toSlot0Configs()
+            .withKP(dashSteerKP)
+            .withKD(dashSteerKD);
+        for (int i = 0; i < 4; i++) {
+          getModule(i).getSteerMotor().getConfigurator().apply(newGains);
+        }
+        System.out.printf("[SwerveDrive] Steer PID updated: kP=%.1f kD=%.2f%n", dashSteerKP, dashSteerKD);
+      }
+    }
 
     applyOperatorPerspective();
 

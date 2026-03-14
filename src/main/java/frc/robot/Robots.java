@@ -20,30 +20,30 @@ public final class Robots {
           .frontLeft(
               new ModuleConfig(
                   /* drive */ 7, /* steer */ 8, /* encoder */ 23,
-                  /* offset */ 0.124267578125,
+                  /* offset */ 0.121337890625,
                   /* x */ 0.2921, /* y */ 0.2921,
                   /* invDrive */ false, /* invSteer */ false, /* invEnc */ false))
           .frontRight(
               new ModuleConfig(
                   /* drive */ 1, /* steer */ 2, /* encoder */ 20,
-                  /* offset */ -0.291015625,
+                  /* offset */ -0.294921875,
                   /* x */ 0.2921, /* y */ -0.2921,
                   /* invDrive */ true, /* invSteer */ false, /* invEnc */ false))
           .backLeft(
               new ModuleConfig(
                   /* drive */ 5, /* steer */ 6, /* encoder */ 22,
-                  /* offset */ 0.048828125,
+                  /* offset */ 0.040771484375,
                   /* x */ -0.2921, /* y */ 0.2921,
                   /* invDrive */ false, /* invSteer */ false, /* invEnc */ false))
           .backRight(
               new ModuleConfig(
                   /* drive */ 3, /* steer */ 4, /* encoder */ 21,
-                  /* offset */ -0.371826171875,
+                  /* offset */ -0.376953125,
                   /* x */ -0.2921, /* y */ -0.2921,
                   /* invDrive */ true, /* invSteer */ false, /* invEnc */ false))
           .gearing(6.394736842105262, 12.1, 4.5, 0.0508)
           .speed(4.99, 0.75 * 2 * Math.PI)
-          .steerPID(new PIDGains(100, 0, 0.5, 0.1, 1.5, 0))
+          .steerPID(new PIDGains(15, 0, 0.9, 0.1, 1.5, 0))
           .drivePID(new PIDGains(0.1, 0, 0, 0, 0.124, 0))
           .simSteerPID(new PIDGains(50, 0, 0.2, 0, 1.0, 0))
           .simDrivePID(new PIDGains(0.05, 0, 0, 0, 0.1, 0))
