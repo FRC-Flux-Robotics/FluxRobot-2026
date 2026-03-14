@@ -67,6 +67,7 @@ public final class DrivetrainConfig {
   // --- Mass properties (PathPlanner) ---
   public final double massKg;
   public final double moiKgM2;
+  public final double wheelCOF;
 
   // --- Sub-configs ---
   public final AutoDriveConfig autoDrive;
@@ -110,6 +111,7 @@ public final class DrivetrainConfig {
     this.rotationDeadband = b.rotationDeadband;
     this.massKg = b.massKg;
     this.moiKgM2 = b.moiKgM2;
+    this.wheelCOF = b.wheelCOF;
     this.autoDrive = b.autoDrive != null ? b.autoDrive : AutoDriveConfig.defaults();
     this.visionConfig = b.visionConfig != null ? b.visionConfig : VisionConfig.defaults();
     this.diagnosticsConfig =
@@ -133,7 +135,7 @@ public final class DrivetrainConfig {
         new com.pathplanner.lib.config.ModuleConfig(
             Meters.of(wheelRadiusMeters),
             MetersPerSecond.of(maxSpeedMps),
-            1.0, // wheelCOF placeholder
+            wheelCOF,
             DCMotor.getKrakenX60(1).withReduction(driveGearRatio),
             Amps.of(driveStatorCurrentLimit),
             1);
@@ -253,6 +255,7 @@ public final class DrivetrainConfig {
     private double rotationDeadband;
     private double massKg = 74.0;
     private double moiKgM2 = 6.0;
+    private double wheelCOF = 1.0;
     private AutoDriveConfig autoDrive;
     private VisionConfig visionConfig;
     private DiagnosticsConfig diagnosticsConfig;
@@ -384,6 +387,14 @@ public final class DrivetrainConfig {
       }
       this.massKg = massKg;
       this.moiKgM2 = moiKgM2;
+      return this;
+    }
+
+    public Builder wheelCOF(double wheelCOF) {
+      if (wheelCOF <= 0) {
+        throw new IllegalArgumentException("wheelCOF must be > 0, got: " + wheelCOF);
+      }
+      this.wheelCOF = wheelCOF;
       return this;
     }
 

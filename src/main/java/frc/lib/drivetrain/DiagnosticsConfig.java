@@ -15,6 +15,7 @@ public final class DiagnosticsConfig {
   public final double brownoutStartV;
   public final double brownoutMinV;
   public final double brownoutMinScale;
+  public final boolean enableSignalLogging;
 
   private DiagnosticsConfig(Builder b) {
     this.motorTempWarnC = b.motorTempWarnC;
@@ -26,6 +27,7 @@ public final class DiagnosticsConfig {
     this.brownoutStartV = b.brownoutStartV;
     this.brownoutMinV = b.brownoutMinV;
     this.brownoutMinScale = b.brownoutMinScale;
+    this.enableSignalLogging = b.enableSignalLogging;
   }
 
   public static Builder builder() {
@@ -47,6 +49,7 @@ public final class DiagnosticsConfig {
     private double brownoutStartV = 10.5;
     private double brownoutMinV = 7.0;
     private double brownoutMinScale = 0.25;
+    private boolean enableSignalLogging = false;
 
     private Builder() {}
 
@@ -103,6 +106,11 @@ public final class DiagnosticsConfig {
       this.brownoutStartV = startV;
       this.brownoutMinV = minV;
       this.brownoutMinScale = minScale;
+      return this;
+    }
+
+    public Builder enableSignalLogging(boolean enable) {
+      this.enableSignalLogging = enable;
       return this;
     }
 

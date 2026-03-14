@@ -1,7 +1,10 @@
 package frc.lib.drivetrain;
 
+import edu.wpi.first.math.geometry.Pose2d;
+
 /** Immutable snapshot of drivetrain state for a single cycle. */
 public record DriveState(
+    Pose2d pose,
     double speedMps,
     double speedPercent,
     double totalCurrentA,

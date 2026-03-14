@@ -47,6 +47,7 @@ public class RobotContainer {
   private SlewRateLimiter rotationLimiter;
   private double currentAccelLimit;
   private double currentRotAccelLimit;
+  private double currentDecelMultiplier;
   private boolean slowMode = false;
 
   // Cached DriverPreferences values (refreshed once per cycle)
@@ -58,6 +59,7 @@ public class RobotContainer {
   private double cachedSlowModeScale;
   private double cachedAccelLimit;
   private double cachedRotAccelLimit;
+  private double cachedDecelMultiplier;
   private long cachedPrefsFrame = -1;
 
   public RobotContainer(DrivetrainConfig config, AprilTagFieldLayout fieldLayout) {
@@ -65,12 +67,14 @@ public class RobotContainer {
 
     currentAccelLimit = DriverPreferences.accelLimit();
     currentRotAccelLimit = DriverPreferences.rotAccelLimit();
-    translationXLimiter = new SlewRateLimiter(currentAccelLimit);
-    translationYLimiter = new SlewRateLimiter(currentAccelLimit);
-    rotationLimiter = new SlewRateLimiter(currentRotAccelLimit);
+    currentDecelMultiplier = DriverPreferences.decelMultiplier();
+    double decelRate = currentAccelLimit * currentDecelMultiplier;
+    translationXLimiter = new SlewRateLimiter(currentAccelLimit, -decelRate, 0);
+    translationYLimiter = new SlewRateLimiter(currentAccelLimit, -decelRate, 0);
+    rotationLimiter = new SlewRateLimiter(currentRotAccelLimit, -currentRotAccelLimit * currentDecelMultiplier, 0);
 
     drivetrain = new SwerveDrive(config, fieldLayout);
-    drivetrain.setTelemetry(new DriverDashboard());
+    drivetrain.setTelemetry(new DriverDashboard(config));
 
     hasTagCamera = !config.cameras.isEmpty();
 
@@ -281,17 +285,23 @@ public class RobotContainer {
     cachedSlowModeScale = DriverPreferences.slowModeScale();
     cachedAccelLimit = DriverPreferences.accelLimit();
     cachedRotAccelLimit = DriverPreferences.rotAccelLimit();
+    cachedDecelMultiplier = DriverPreferences.decelMultiplier();
   }
 
   private void updateSlewRates() {
-    if (cachedAccelLimit != currentAccelLimit) {
+    if (cachedAccelLimit != currentAccelLimit
+        || cachedDecelMultiplier != currentDecelMultiplier) {
       currentAccelLimit = cachedAccelLimit;
-      translationXLimiter = new SlewRateLimiter(cachedAccelLimit);
-      translationYLimiter = new SlewRateLimiter(cachedAccelLimit);
+      currentDecelMultiplier = cachedDecelMultiplier;
+      double decelRate = currentAccelLimit * currentDecelMultiplier;
+      translationXLimiter = new SlewRateLimiter(currentAccelLimit, -decelRate, translationXLimiter.lastValue());
+      translationYLimiter = new SlewRateLimiter(currentAccelLimit, -decelRate, translationYLimiter.lastValue());
     }
-    if (cachedRotAccelLimit != currentRotAccelLimit) {
+    if (cachedRotAccelLimit != currentRotAccelLimit
+        || cachedDecelMultiplier != currentDecelMultiplier) {
       currentRotAccelLimit = cachedRotAccelLimit;
-      rotationLimiter = new SlewRateLimiter(cachedRotAccelLimit);
+      double rotDecelRate = currentRotAccelLimit * currentDecelMultiplier;
+      rotationLimiter = new SlewRateLimiter(currentRotAccelLimit, -rotDecelRate, rotationLimiter.lastValue());
     }
   }
 

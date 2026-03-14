@@ -22,6 +22,11 @@ public interface DrivetrainIO {
     public double[] driveCurrentA = new double[4];
     public double[] steerCurrentA = new double[4];
 
+    // Hardware health (per-module)
+    public boolean[] driveHealthy = new boolean[] {true, true, true, true};
+    public boolean[] steerHealthy = new boolean[] {true, true, true, true};
+    public boolean gyroHealthy = true;
+
     // Battery
     public double batteryVoltage = 12.0;
 

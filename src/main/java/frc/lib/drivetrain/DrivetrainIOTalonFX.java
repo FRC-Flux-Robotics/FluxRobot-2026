@@ -26,22 +26,28 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
   private final PhotonPoseEstimator[] poseEstimators;
   private final PhotonPipelineResult[] latestCameraResults;
 
-  // Cached StatusSignal references (per module × 5 signals = 20 total)
+  // Cached StatusSignal references (per module × 5 signals + 1 gyro = 21 total)
   private final StatusSignal<?>[] drivePositionSignals = new StatusSignal<?>[4];
   private final StatusSignal<?>[] driveTempSignals = new StatusSignal<?>[4];
   private final StatusSignal<?>[] steerTempSignals = new StatusSignal<?>[4];
   private final StatusSignal<?>[] driveCurrentSignals = new StatusSignal<?>[4];
   private final StatusSignal<?>[] steerCurrentSignals = new StatusSignal<?>[4];
+  private final StatusSignal<?> gyroYawSignal;
   private final BaseStatusSignal[] allSignals;
+
+  // Round-robin vision processing
+  private int visionCycleCounter = 0;
 
   public DrivetrainIOTalonFX(
       Supplier<SwerveDriveState> stateSupplier,
       IntFunction<SwerveModule<TalonFX, TalonFX, CANcoder>> moduleSupplier,
       double driveGearRatio,
       List<CameraConfig> cameraConfigs,
-      AprilTagFieldLayout fieldLayout) {
+      AprilTagFieldLayout fieldLayout,
+      StatusSignal<?> gyroYawSignal) {
     this.stateSupplier = stateSupplier;
     this.driveGearRatio = driveGearRatio;
+    this.gyroYawSignal = gyroYawSignal;
 
     // Cache all StatusSignal references for batch refresh
     for (int i = 0; i < 4; i++) {
@@ -60,7 +66,7 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
       steerMotor.optimizeBusUtilization();
       module.getEncoder().optimizeBusUtilization();
     }
-    allSignals = new BaseStatusSignal[20];
+    allSignals = new BaseStatusSignal[21];
     for (int i = 0; i < 4; i++) {
       allSignals[i * 5 + 0] = drivePositionSignals[i];
       allSignals[i * 5 + 1] = driveTempSignals[i];
@@ -68,6 +74,7 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
       allSignals[i * 5 + 3] = driveCurrentSignals[i];
       allSignals[i * 5 + 4] = steerCurrentSignals[i];
     }
+    allSignals[20] = gyroYawSignal;
 
     if (cameraConfigs != null && fieldLayout != null) {
       cameras = new PhotonCamera[cameraConfigs.size()];
@@ -98,7 +105,7 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
 
   @Override
   public void updateInputs(DrivetrainIOInputsAutoLogged inputs) {
-    // Batch-refresh all 20 CAN signals in one frame
+    // Batch-refresh all 21 CAN signals in one frame
     BaseStatusSignal.refreshAll(allSignals);
 
     SwerveDriveState state = stateSupplier.get();
@@ -106,6 +113,7 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
     // Gyro
     inputs.gyroYawDeg = state.Pose.getRotation().getDegrees();
     inputs.gyroRateDegPerSec = Math.toDegrees(state.Speeds.omegaRadiansPerSecond);
+    inputs.gyroHealthy = gyroYawSignal.getStatus().isOK();
 
     // Odometry
     inputs.odometryPeriodSec = state.OdometryPeriod;
@@ -121,6 +129,12 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
       inputs.steerTempC[i] = steerTempSignals[i].getValueAsDouble();
       inputs.driveCurrentA[i] = driveCurrentSignals[i].getValueAsDouble();
       inputs.steerCurrentA[i] = steerCurrentSignals[i].getValueAsDouble();
+
+      // Health: check signal status for fault detection
+      inputs.driveHealthy[i] =
+          driveCurrentSignals[i].getStatus().isOK()
+              && drivePositionSignals[i].getStatus().isOK();
+      inputs.steerHealthy[i] = steerCurrentSignals[i].getStatus().isOK();
     }
 
     // Battery voltage
@@ -154,8 +168,17 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
         Arrays.fill(inputs.visionPoseZ, 0);
       }
 
+      // Round-robin: process one camera per cycle, check connectivity for all
+      int activeCamera = visionCycleCounter % camCount;
+      visionCycleCounter++;
+
       for (int i = 0; i < camCount; i++) {
         inputs.visionConnected[i] = cameras[i].isConnected();
+
+        // Only fully process the active camera this cycle
+        if (i != activeCamera) {
+          continue;
+        }
 
         List<PhotonPipelineResult> results = cameras[i].getAllUnreadResults();
         if (results.isEmpty()) {
@@ -175,11 +198,14 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
           inputs.visionTimestampSec[i] = est.timestampSeconds;
           inputs.visionTagCount[i] = est.targetsUsed.size();
           if (!est.targetsUsed.isEmpty()) {
-            inputs.visionAmbiguity[i] = est.targetsUsed.get(0).getPoseAmbiguity();
+            // Worst-case ambiguity across all targets (not just first)
+            double maxAmbiguity = 0;
             double totalDist = 0;
             for (var target : est.targetsUsed) {
+              maxAmbiguity = Math.max(maxAmbiguity, target.getPoseAmbiguity());
               totalDist += target.getBestCameraToTarget().getTranslation().getNorm();
             }
+            inputs.visionAmbiguity[i] = maxAmbiguity;
             inputs.visionAvgTagDistM[i] = totalDist / est.targetsUsed.size();
           }
         }

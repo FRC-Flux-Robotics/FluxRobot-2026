@@ -68,7 +68,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   // Reusable swerve requests (never allocate in loops)
   private final SwerveRequest.FieldCentric fieldCentricRequest;
   private final SwerveRequest.FieldCentric driveToPoseRequest =
-      new SwerveRequest.FieldCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+      new SwerveRequest.FieldCentric().withDriveRequestType(DriveRequestType.Velocity);
   private final SwerveRequest.RobotCentric robotCentricRequest =
       new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
   private final SwerveRequest.RobotCentric autoRequest =
@@ -152,7 +152,8 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 this::getModule,
                 config.driveGearRatio,
                 config.cameras,
-                fieldLayout);
+                fieldLayout,
+                getPigeon2().getYaw());
 
     getPigeon2().optimizeBusUtilization();
 
@@ -173,7 +174,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         new SwerveRequest.FieldCentricFacingAngle()
             .withDeadband(config.maxSpeedMps * config.translationDeadband)
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
-    facingAngleRequest.HeadingController.setPID(config.autoDrive.headingKP, 0, 0);
+    facingAngleRequest.HeadingController.setPID(config.autoDrive.headingKP, 0, config.autoDrive.headingKD);
     facingAngleRequest.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
     AutoBuilder.configure(
@@ -200,7 +201,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
         this);
 
-    SignalLogger.start();
+    if (config.diagnosticsConfig.enableSignalLogging) {
+      SignalLogger.start();
+    }
 
     SmartDashboard.putBoolean("Vision Enabled", visionEnabled);
 
@@ -220,7 +223,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
               fieldCentricRequest
                   .withVelocityX(vx.getAsDouble() * scale)
                   .withVelocityY(vy.getAsDouble() * scale)
-                  .withRotationalRate(omega.getAsDouble() * scale));
+                  .withRotationalRate(omega.getAsDouble()));
         });
   }
 
@@ -233,7 +236,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
               robotCentricRequest
                   .withVelocityX(vx.getAsDouble() * scale)
                   .withVelocityY(vy.getAsDouble() * scale)
-                  .withRotationalRate(omega.getAsDouble() * scale));
+                  .withRotationalRate(omega.getAsDouble()));
         });
   }
 
@@ -376,13 +379,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
     return run(() -> {
           Pose2d current = getPose();
-          double scale = getVoltageSpeedScale();
-          double vx = xController.calculate(current.getX(), target.getX()) * scale;
-          double vy = yController.calculate(current.getY(), target.getY()) * scale;
+          double vx = xController.calculate(current.getX(), target.getX());
+          double vy = yController.calculate(current.getY(), target.getY());
           double omega =
               rotController.calculate(
-                      current.getRotation().getRadians(), target.getRotation().getRadians())
-                  * scale;
+                      current.getRotation().getRadians(), target.getRotation().getRadians());
           setControl(
               driveToPoseRequest.withVelocityX(vx).withVelocityY(vy).withRotationalRate(omega));
 
@@ -548,7 +549,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     double linearSpeed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
 
     logPoseAndSpeed(state, speeds, linearSpeed, fullLogCycle);
-    logToSignalLogger(state, linearSpeed);
+    if (config.diagnosticsConfig.enableSignalLogging) {
+      logToSignalLogger(state, linearSpeed);
+    }
 
     if (!loggedOdometryHz && inputs.odometryPeriodSec > 0) {
       double hz = 1.0 / inputs.odometryPeriodSec;
@@ -565,9 +568,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     Logger.recordOutput("Drive/ModuleTargets", state.ModuleTargets);
 
     double totalCurrentA = logModuleTelemetry(fullLogCycle);
-    fuseVision(state.Pose, fullLogCycle);
+    fuseVision(state.Pose, linearSpeed, fullLogCycle);
     checkDiagnostics(state, fullLogCycle);
-    publishDriveState(linearSpeed, totalCurrentA, brownoutScale, active, fullLogCycle);
+    publishDriveState(state.Pose, linearSpeed, totalCurrentA, brownoutScale, active, fullLogCycle);
   }
 
   private void applyOperatorPerspective() {
@@ -651,7 +654,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     return totalCurrentA;
   }
 
-  private void fuseVision(Pose2d pose, boolean fullLogCycle) {
+  private void fuseVision(Pose2d pose, double linearSpeed, boolean fullLogCycle) {
     visionEnabled = SmartDashboard.getBoolean("Vision Enabled", true);
     Logger.recordOutput("Drive/VisionEnabled", visionEnabled);
 
@@ -723,8 +726,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
               Logger.recordOutput(vPrefix + "Rejected", false);
               Logger.recordOutput(vPrefix + "RejectReason", "");
             }
+            // Scale std devs by speed: at max speed, trust vision 2x less
+            double speedScale = 1.0 + linearSpeed / config.maxSpeedMps;
+            Matrix<N3, N1> scaledStdDevs = stdDevs.times(speedScale);
             super.addVisionMeasurement(
-                visionPose, Utils.fpgaToCurrentTime(inputs.visionTimestampSec[i]), stdDevs);
+                visionPose, Utils.fpgaToCurrentTime(inputs.visionTimestampSec[i]), scaledStdDevs);
             anyAccepted = true;
             cycleMaxTagCount = Math.max(cycleMaxTagCount, inputs.visionTagCount[i]);
             cycleMinAmbiguity = Math.min(cycleMinAmbiguity, inputs.visionAmbiguity[i]);
@@ -748,6 +754,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   }
 
   private void publishDriveState(
+      Pose2d pose,
       double linearSpeed,
       double totalCurrentA,
       double brownoutScale,
@@ -756,6 +763,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     if (telemetry != null && fullLogCycle) {
       telemetry.update(
           new DriveState(
+              pose,
               linearSpeed,
               linearSpeed / config.maxSpeedMps * 100.0,
               totalCurrentA,
@@ -894,9 +902,44 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
       lastDiagnosticTimeSec = now;
     }
 
+    // Motor/gyro fault detection
+    for (int i = 0; i < 4; i++) {
+      if (!inputs.driveHealthy[i] && cooldownExpired) {
+        DriverStation.reportError(
+            String.format("Drive: %s drive motor CAN fault!", MODULE_NAMES[i]), false);
+        warned = true;
+      }
+      if (!inputs.steerHealthy[i] && cooldownExpired) {
+        DriverStation.reportError(
+            String.format("Drive: %s steer motor CAN fault!", MODULE_NAMES[i]), false);
+        warned = true;
+      }
+    }
+    if (!inputs.gyroHealthy && cooldownExpired) {
+      DriverStation.reportError("Drive: Gyro CAN fault!", false);
+      warned = true;
+    }
+    if (fullLogCycle) {
+      Logger.recordOutput("Drive/Diagnostics/GyroHealthy", inputs.gyroHealthy);
+      for (int i = 0; i < 4; i++) {
+        String diagPrefix = "Drive/Diagnostics/" + MODULE_NAMES[i] + "/";
+        Logger.recordOutput(diagPrefix + "DriveHealthy", inputs.driveHealthy[i]);
+        Logger.recordOutput(diagPrefix + "SteerHealthy", inputs.steerHealthy[i]);
+      }
+    }
+
     // Health summary for driver dashboard
-    lastAllHealthy = !odometryStale && brownoutScale >= 1.0;
+    boolean allMotorsHealthy = inputs.gyroHealthy;
+    for (int i = 0; i < 4; i++) {
+      allMotorsHealthy = allMotorsHealthy && inputs.driveHealthy[i] && inputs.steerHealthy[i];
+    }
+    lastAllHealthy = !odometryStale && brownoutScale >= 1.0 && allMotorsHealthy;
     lastStatusMessage = "Ready";
+
+    if (!allMotorsHealthy) {
+      lastAllHealthy = false;
+      lastStatusMessage = "CAN fault detected";
+    }
 
     if (odometryStale) {
       lastAllHealthy = false;

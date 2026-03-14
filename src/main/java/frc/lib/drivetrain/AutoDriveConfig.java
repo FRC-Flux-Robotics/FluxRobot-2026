@@ -7,6 +7,7 @@ package frc.lib.drivetrain;
 public final class AutoDriveConfig {
 
   public final double headingKP;
+  public final double headingKD;
   public final double autoTranslationKP;
   public final double autoTranslationKI;
   public final double autoTranslationKD;
@@ -21,6 +22,7 @@ public final class AutoDriveConfig {
 
   private AutoDriveConfig(Builder b) {
     this.headingKP = b.headingKP;
+    this.headingKD = b.headingKD;
     this.autoTranslationKP = b.autoTranslationKP;
     this.autoTranslationKI = b.autoTranslationKI;
     this.autoTranslationKD = b.autoTranslationKD;
@@ -45,6 +47,7 @@ public final class AutoDriveConfig {
 
   public static final class Builder {
     private double headingKP = 5.0;
+    private double headingKD = 0.3;
     private double autoTranslationKP = 5.0;
     private double autoTranslationKI = 0.0;
     private double autoTranslationKD = 0.0;
@@ -62,6 +65,12 @@ public final class AutoDriveConfig {
     public Builder headingKP(double headingKP) {
       requirePositive("headingKP", headingKP);
       this.headingKP = headingKP;
+      return this;
+    }
+
+    public Builder headingKD(double headingKD) {
+      requireNonNegative("headingKD", headingKD);
+      this.headingKD = headingKD;
       return this;
     }
 

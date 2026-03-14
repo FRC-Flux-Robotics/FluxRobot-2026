@@ -18,6 +18,7 @@ public final class DriverPreferences {
   private static final String ACCEL_LIMIT = "Drive/AccelLimit";
   private static final String ROT_ACCEL_LIMIT = "Drive/RotAccelLimit";
   private static final String SLOW_MODE_SCALE = "Drive/SlowMode%";
+  private static final String DECEL_MULTIPLIER = "Drive/DecelMultiplier";
 
   // Defaults
   private static final double DEFAULT_MAX_SPEED_SCALE = 1.0;
@@ -28,6 +29,7 @@ public final class DriverPreferences {
   private static final double DEFAULT_ACCEL_LIMIT = 4.0;
   private static final double DEFAULT_ROT_ACCEL_LIMIT = 5.0;
   private static final double DEFAULT_SLOW_MODE_SCALE = 0.3;
+  private static final double DEFAULT_DECEL_MULTIPLIER = 2.0;
 
   private DriverPreferences() {}
 
@@ -41,6 +43,7 @@ public final class DriverPreferences {
     Preferences.initDouble(ACCEL_LIMIT, DEFAULT_ACCEL_LIMIT);
     Preferences.initDouble(ROT_ACCEL_LIMIT, DEFAULT_ROT_ACCEL_LIMIT);
     Preferences.initDouble(SLOW_MODE_SCALE, DEFAULT_SLOW_MODE_SCALE);
+    Preferences.initDouble(DECEL_MULTIPLIER, DEFAULT_DECEL_MULTIPLIER);
   }
 
   /** Max translational speed scale factor (0.0–1.0). */
@@ -85,5 +88,11 @@ public final class DriverPreferences {
   public static double slowModeScale() {
     return MathUtil.clamp(
         Preferences.getDouble(SLOW_MODE_SCALE, DEFAULT_SLOW_MODE_SCALE), 0.1, 0.8);
+  }
+
+  /** Deceleration multiplier relative to acceleration rate (1.0–5.0). */
+  public static double decelMultiplier() {
+    return MathUtil.clamp(
+        Preferences.getDouble(DECEL_MULTIPLIER, DEFAULT_DECEL_MULTIPLIER), 1.0, 5.0);
   }
 }
