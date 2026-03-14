@@ -131,6 +131,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   private double dashSteerKP;
   private double dashSteerKD;
   private double dashSteerCurrentLimit;
+  private double dashDriveStatorCurrentLimit;
   private double dashDriveSupplyCurrentLimit;
 
   // Simulation
@@ -224,10 +225,12 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     dashSteerKP = config.activeSteerGains.kP;
     dashSteerKD = config.activeSteerGains.kD;
     dashSteerCurrentLimit = config.steerStatorCurrentLimit;
+    dashDriveStatorCurrentLimit = config.driveStatorCurrentLimit;
     dashDriveSupplyCurrentLimit = config.driveSupplyCurrentLimit;
     SmartDashboard.putNumber("Drive/SteerKP", dashSteerKP);
     SmartDashboard.putNumber("Drive/SteerKD", dashSteerKD);
     SmartDashboard.putNumber("Drive/SteerCurrentLimit", dashSteerCurrentLimit);
+    SmartDashboard.putNumber("Drive/DriveStatorCurrentLimit", dashDriveStatorCurrentLimit);
     SmartDashboard.putNumber("Drive/DriveSupplyCurrentLimit", dashDriveSupplyCurrentLimit);
 
     if (Utils.isSimulation()) {
@@ -609,18 +612,22 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         System.out.printf("[SwerveDrive] Steer current limit updated: %.0fA%n", dashSteerCurrentLimit);
       }
 
+      double newDriveStator = SmartDashboard.getNumber("Drive/DriveStatorCurrentLimit", dashDriveStatorCurrentLimit);
       double newDriveSupply = SmartDashboard.getNumber("Drive/DriveSupplyCurrentLimit", dashDriveSupplyCurrentLimit);
-      if (newDriveSupply != dashDriveSupplyCurrentLimit && newDriveSupply > 0 && newDriveSupply <= 60) {
-        dashDriveSupplyCurrentLimit = newDriveSupply;
+      if ((newDriveStator != dashDriveStatorCurrentLimit && newDriveStator > 0 && newDriveStator <= 80)
+          || (newDriveSupply != dashDriveSupplyCurrentLimit && newDriveSupply > 0 && newDriveSupply <= 60)) {
+        if (newDriveStator > 0 && newDriveStator <= 80) dashDriveStatorCurrentLimit = newDriveStator;
+        if (newDriveSupply > 0 && newDriveSupply <= 60) dashDriveSupplyCurrentLimit = newDriveSupply;
         var driveCurrentConfig = new com.ctre.phoenix6.configs.CurrentLimitsConfigs()
-            .withStatorCurrentLimit(edu.wpi.first.units.Units.Amps.of(config.driveStatorCurrentLimit))
+            .withStatorCurrentLimit(edu.wpi.first.units.Units.Amps.of(dashDriveStatorCurrentLimit))
             .withStatorCurrentLimitEnable(true)
             .withSupplyCurrentLimit(edu.wpi.first.units.Units.Amps.of(dashDriveSupplyCurrentLimit))
             .withSupplyCurrentLimitEnable(true);
         for (int i = 0; i < 4; i++) {
           getModule(i).getDriveMotor().getConfigurator().apply(driveCurrentConfig);
         }
-        System.out.printf("[SwerveDrive] Drive supply current limit updated: %.0fA%n", dashDriveSupplyCurrentLimit);
+        System.out.printf("[SwerveDrive] Drive current limits updated: stator=%.0fA supply=%.0fA%n",
+            dashDriveStatorCurrentLimit, dashDriveSupplyCurrentLimit);
       }
     }
 
@@ -984,7 +991,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
       // Drive current near limit (from IO inputs)
       double driveCurrent = inputs.driveCurrentA[i];
       boolean currentWarn =
-          driveCurrent > config.driveStatorCurrentLimit * diag.currentWarnFraction;
+          driveCurrent > dashDriveStatorCurrentLimit * diag.currentWarnFraction;
       if (fullLogCycle) {
         String diagPrefix = "Drive/Diagnostics/" + name + "/";
         Logger.recordOutput(diagPrefix + "CurrentWarn", currentWarn);
@@ -993,7 +1000,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         DriverStation.reportWarning(
             String.format(
                 "Drive: %s drive current high (%.0fA/%.0fA limit)",
-                name, driveCurrent, config.driveStatorCurrentLimit),
+                name, driveCurrent, dashDriveStatorCurrentLimit),
             false);
         warned = true;
       }
