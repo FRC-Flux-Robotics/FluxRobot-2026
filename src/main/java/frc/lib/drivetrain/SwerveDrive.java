@@ -122,10 +122,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   // Vision enable/disable (dashboard switch)
   private boolean visionEnabled;
 
-  // Live-tunable steer PID and current limit (edit on SmartDashboard, applied when changed)
+  // Live-tunable steer PID and current limits (edit on SmartDashboard, applied when changed)
   private double dashSteerKP;
   private double dashSteerKD;
   private double dashSteerCurrentLimit;
+  private double dashDriveSupplyCurrentLimit;
 
   // Simulation
   private Notifier simNotifier = null;
@@ -218,9 +219,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     dashSteerKP = config.activeSteerGains.kP;
     dashSteerKD = config.activeSteerGains.kD;
     dashSteerCurrentLimit = config.steerStatorCurrentLimit;
+    dashDriveSupplyCurrentLimit = config.driveSupplyCurrentLimit;
     SmartDashboard.putNumber("Drive/SteerKP", dashSteerKP);
     SmartDashboard.putNumber("Drive/SteerKD", dashSteerKD);
     SmartDashboard.putNumber("Drive/SteerCurrentLimit", dashSteerCurrentLimit);
+    SmartDashboard.putNumber("Drive/DriveSupplyCurrentLimit", dashDriveSupplyCurrentLimit);
 
     if (Utils.isSimulation()) {
       startSimThread();
@@ -596,6 +599,20 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
           getModule(i).getSteerMotor().getConfigurator().apply(currentConfig);
         }
         System.out.printf("[SwerveDrive] Steer current limit updated: %.0fA%n", dashSteerCurrentLimit);
+      }
+
+      double newDriveSupply = SmartDashboard.getNumber("Drive/DriveSupplyCurrentLimit", dashDriveSupplyCurrentLimit);
+      if (newDriveSupply != dashDriveSupplyCurrentLimit && newDriveSupply > 0 && newDriveSupply <= 60) {
+        dashDriveSupplyCurrentLimit = newDriveSupply;
+        var driveCurrentConfig = new com.ctre.phoenix6.configs.CurrentLimitsConfigs()
+            .withStatorCurrentLimit(edu.wpi.first.units.Units.Amps.of(config.driveStatorCurrentLimit))
+            .withStatorCurrentLimitEnable(true)
+            .withSupplyCurrentLimit(edu.wpi.first.units.Units.Amps.of(dashDriveSupplyCurrentLimit))
+            .withSupplyCurrentLimitEnable(true);
+        for (int i = 0; i < 4; i++) {
+          getModule(i).getDriveMotor().getConfigurator().apply(driveCurrentConfig);
+        }
+        System.out.printf("[SwerveDrive] Drive supply current limit updated: %.0fA%n", dashDriveSupplyCurrentLimit);
       }
     }
 
