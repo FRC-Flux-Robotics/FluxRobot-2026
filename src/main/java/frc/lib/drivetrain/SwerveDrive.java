@@ -223,10 +223,16 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
           double rawVy = vy.getAsDouble();
           double rawOmega = omega.getAsDouble();
 
+          Logger.recordOutput("Drive/Input/RawVx", rawVx);
+          Logger.recordOutput("Drive/Input/RawVy", rawVy);
+          Logger.recordOutput("Drive/Input/RawOmega", rawOmega);
+
           // Idle when no input — avoids commanding a target angle that causes module oscillation
-          if (Math.hypot(rawVx, rawVy) < fieldCentricRequest.Deadband
+          double linearMag = Math.hypot(rawVx, rawVy);
+          if (linearMag < fieldCentricRequest.Deadband
               && Math.abs(rawOmega) < fieldCentricRequest.RotationalDeadband) {
             setControl(idleRequest);
+            Logger.recordOutput("Drive/Input/RequestType", "Idle");
             return;
           }
 
@@ -236,6 +242,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                   .withVelocityX(rawVx * scale)
                   .withVelocityY(rawVy * scale)
                   .withRotationalRate(rawOmega));
+          Logger.recordOutput("Drive/Input/RequestType", "FieldCentric");
         });
   }
 
@@ -578,6 +585,19 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     Logger.recordOutput("Drive/ActiveCommand", active != null ? active.getName() : "none");
     Logger.recordOutput("Drive/ModuleStates", state.ModuleStates);
     Logger.recordOutput("Drive/ModuleTargets", state.ModuleTargets);
+
+    // Debug: log module target vs actual angles and speeds for oscillation diagnosis
+    if (fullLogCycle) {
+      for (int i = 0; i < 4; i++) {
+        String prefix = "Drive/Debug/" + MODULE_NAMES[i] + "/";
+        Logger.recordOutput(prefix + "TargetAngleDeg", state.ModuleTargets[i].angle.getDegrees());
+        Logger.recordOutput(prefix + "ActualAngleDeg", state.ModuleStates[i].angle.getDegrees());
+        Logger.recordOutput(prefix + "AngleErrorDeg",
+            state.ModuleTargets[i].angle.minus(state.ModuleStates[i].angle).getDegrees());
+        Logger.recordOutput(prefix + "TargetSpeedMps", state.ModuleTargets[i].speedMetersPerSecond);
+        Logger.recordOutput(prefix + "ActualSpeedMps", state.ModuleStates[i].speedMetersPerSecond);
+      }
+    }
 
     double totalCurrentA = logModuleTelemetry(fullLogCycle);
     fuseVision(state.Pose, linearSpeed, fullLogCycle);
