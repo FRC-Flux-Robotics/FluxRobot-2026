@@ -122,9 +122,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   // Vision enable/disable (dashboard switch)
   private boolean visionEnabled;
 
-  // Live-tunable steer PID (edit on SmartDashboard, applied to motors each cycle if changed)
+  // Live-tunable steer PID and current limit (edit on SmartDashboard, applied when changed)
   private double dashSteerKP;
   private double dashSteerKD;
+  private double dashSteerCurrentLimit;
 
   // Simulation
   private Notifier simNotifier = null;
@@ -216,8 +217,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
     dashSteerKP = config.activeSteerGains.kP;
     dashSteerKD = config.activeSteerGains.kD;
+    dashSteerCurrentLimit = config.steerStatorCurrentLimit;
     SmartDashboard.putNumber("Drive/SteerKP", dashSteerKP);
     SmartDashboard.putNumber("Drive/SteerKD", dashSteerKD);
+    SmartDashboard.putNumber("Drive/SteerCurrentLimit", dashSteerCurrentLimit);
 
     if (Utils.isSimulation()) {
       startSimThread();
@@ -567,7 +570,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     periodicCycleCount++;
     boolean fullLogCycle = (periodicCycleCount % 10 == 0);
 
-    // Live steer PID tuning from dashboard
+    // Live steer tuning from dashboard
     if (fullLogCycle) {
       double newKP = SmartDashboard.getNumber("Drive/SteerKP", dashSteerKP);
       double newKD = SmartDashboard.getNumber("Drive/SteerKD", dashSteerKD);
@@ -581,6 +584,18 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
           getModule(i).getSteerMotor().getConfigurator().apply(newGains);
         }
         System.out.printf("[SwerveDrive] Steer PID updated: kP=%.1f kD=%.2f%n", dashSteerKP, dashSteerKD);
+      }
+
+      double newCurrentLimit = SmartDashboard.getNumber("Drive/SteerCurrentLimit", dashSteerCurrentLimit);
+      if (newCurrentLimit != dashSteerCurrentLimit && newCurrentLimit > 0 && newCurrentLimit <= 80) {
+        dashSteerCurrentLimit = newCurrentLimit;
+        var currentConfig = new com.ctre.phoenix6.configs.CurrentLimitsConfigs()
+            .withStatorCurrentLimit(edu.wpi.first.units.Units.Amps.of(dashSteerCurrentLimit))
+            .withStatorCurrentLimitEnable(true);
+        for (int i = 0; i < 4; i++) {
+          getModule(i).getSteerMotor().getConfigurator().apply(currentConfig);
+        }
+        System.out.printf("[SwerveDrive] Steer current limit updated: %.0fA%n", dashSteerCurrentLimit);
       }
     }
 
