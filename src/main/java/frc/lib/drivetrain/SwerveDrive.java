@@ -860,11 +860,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         }
       }
 
-      // Module alignment error (skip when target speed is near zero — angle is meaningless)
-      double targetSpeed = Math.abs(moduleTargets[i].speedMetersPerSecond);
+      // Module alignment error (skip when module isn't actually moving — angle is meaningless at rest)
+      double actualSpeed = Math.abs(moduleStates[i].speedMetersPerSecond);
       double angleError =
           Math.abs(moduleTargets[i].angle.minus(moduleStates[i].angle).getDegrees());
-      boolean alignmentWarn = targetSpeed > 0.1 && angleError > diag.alignmentErrorWarnDeg;
+      boolean alignmentWarn = actualSpeed > 0.1 && angleError > diag.alignmentErrorWarnDeg;
       if (fullLogCycle) {
         String diagPrefix = "Drive/Diagnostics/" + name + "/";
         Logger.recordOutput(diagPrefix + "AlignmentWarn", alignmentWarn);
