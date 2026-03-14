@@ -47,7 +47,7 @@ public final class Robots {
           .drivePID(new PIDGains(0.1, 0, 0, 0, 0.124, 0))
           .simSteerPID(new PIDGains(50, 0, 0.2, 0, 1.0, 0))
           .simDrivePID(new PIDGains(0.05, 0, 0, 0, 0.1, 0))
-          .currentLimits(40, 35, 60, 120)
+          .currentLimits(40, 35, 20, 120)
           .deadband(0.05, 0.1)
           .mass(74.0, 6.0)
           .camera(

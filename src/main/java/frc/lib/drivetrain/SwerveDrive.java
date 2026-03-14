@@ -858,9 +858,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
       warned = true;
     }
 
-    // Stale odometry (CAN timeout indicator)
+    // Stale odometry (CAN timeout indicator) — skip when period is 0 (no data yet)
     double odometryHz = inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0;
-    boolean odometryStale = odometryHz < diag.odometryMinHz;
+    boolean odometryStale = inputs.odometryPeriodSec > 0 && odometryHz < diag.odometryMinHz;
     if (fullLogCycle) {
       Logger.recordOutput("Drive/Diagnostics/OdometryStale", odometryStale);
     }
