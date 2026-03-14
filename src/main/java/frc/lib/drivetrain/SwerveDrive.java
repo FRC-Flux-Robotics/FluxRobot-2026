@@ -118,7 +118,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   private final double[] signalLogModuleStates = new double[8];
 
   // Vision enable/disable (dashboard switch)
-  private boolean visionEnabled = true;
+  private boolean visionEnabled;
 
   // Simulation
   private Notifier simNotifier = null;
@@ -144,6 +144,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         config.createModuleConstants(config.backRight));
 
     this.config = config;
+    this.visionEnabled = config.visionConfig.enabledByDefault;
     this.io =
         (io != null)
             ? io
@@ -655,7 +656,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   }
 
   private void fuseVision(Pose2d pose, double linearSpeed, boolean fullLogCycle) {
-    visionEnabled = SmartDashboard.getBoolean("Vision Enabled", true);
+    visionEnabled = SmartDashboard.getBoolean("Vision Enabled", config.visionConfig.enabledByDefault);
     Logger.recordOutput("Drive/VisionEnabled", visionEnabled);
 
     if (!visionEnabled) {

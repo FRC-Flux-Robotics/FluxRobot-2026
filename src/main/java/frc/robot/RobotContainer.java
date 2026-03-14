@@ -42,18 +42,18 @@ public class RobotContainer {
 
   protected boolean useTwoControllers = false;
 
-  private SlewRateLimiter translationXLimiter;
-  private SlewRateLimiter translationYLimiter;
-  private SlewRateLimiter rotationLimiter;
+  protected SlewRateLimiter translationXLimiter;
+  protected SlewRateLimiter translationYLimiter;
+  protected SlewRateLimiter rotationLimiter;
   private double currentAccelLimit;
   private double currentRotAccelLimit;
   private double currentDecelMultiplier;
   private boolean slowMode = false;
 
   // Cached DriverPreferences values (refreshed once per cycle)
-  private double cachedDeadband;
+  protected double cachedDeadband;
   private double cachedDriveExpo;
-  private double cachedRotationExpo;
+  protected double cachedRotationExpo;
   private double cachedMaxSpeedScale;
   private double cachedMaxRotationScale;
   private double cachedSlowModeScale;
@@ -257,7 +257,7 @@ public class RobotContainer {
   private double[] cachedStick = new double[2];
   private long cachedStickFrame = -1;
 
-  private double[] getClampedStick() {
+  protected double[] getClampedStick() {
     long frame = Logger.getTimestamp();
     if (frame == cachedStickFrame) return cachedStick;
     cachedStickFrame = frame;
@@ -273,7 +273,7 @@ public class RobotContainer {
     return cachedStick;
   }
 
-  private void refreshPrefsCache() {
+  protected void refreshPrefsCache() {
     long frame = Logger.getTimestamp();
     if (frame == cachedPrefsFrame) return;
     cachedPrefsFrame = frame;
@@ -288,7 +288,15 @@ public class RobotContainer {
     cachedDecelMultiplier = DriverPreferences.decelMultiplier();
   }
 
-  private void updateSlewRates() {
+  protected double getSpeedScale() {
+    return slowMode ? cachedSlowModeScale : cachedMaxSpeedScale;
+  }
+
+  protected double getRotationScale() {
+    return slowMode ? cachedSlowModeScale : cachedMaxRotationScale;
+  }
+
+  protected void updateSlewRates() {
     if (cachedAccelLimit != currentAccelLimit
         || cachedDecelMultiplier != currentDecelMultiplier) {
       currentAccelLimit = cachedAccelLimit;

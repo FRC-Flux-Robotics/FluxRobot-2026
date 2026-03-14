@@ -13,6 +13,7 @@ public final class VisionConfig {
   public final double angularStdDevCoeff;
   public final double fieldMaxX;
   public final double fieldMaxY;
+  public final boolean enabledByDefault;
 
   private VisionConfig(Builder b) {
     this.maxAmbiguity = b.maxAmbiguity;
@@ -22,6 +23,7 @@ public final class VisionConfig {
     this.angularStdDevCoeff = b.angularStdDevCoeff;
     this.fieldMaxX = b.fieldMaxX;
     this.fieldMaxY = b.fieldMaxY;
+    this.enabledByDefault = b.enabledByDefault;
   }
 
   public static Builder builder() {
@@ -41,6 +43,7 @@ public final class VisionConfig {
     private double angularStdDevCoeff = 0.06;
     private double fieldMaxX = 17.0;
     private double fieldMaxY = 8.7;
+    private boolean enabledByDefault = true;
 
     private Builder() {}
 
@@ -79,6 +82,11 @@ public final class VisionConfig {
       requirePositive("fieldMaxY", maxY);
       this.fieldMaxX = maxX;
       this.fieldMaxY = maxY;
+      return this;
+    }
+
+    public Builder enabledByDefault(boolean enabledByDefault) {
+      this.enabledByDefault = enabledByDefault;
       return this;
     }
 

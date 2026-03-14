@@ -5,6 +5,7 @@ import edu.wpi.first.math.geometry.Transform3d;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.ModuleConfig;
 import frc.lib.drivetrain.PIDGains;
+import frc.lib.drivetrain.VisionConfig;
 
 /**
  * Static DrivetrainConfig instances for each robot. CAN IDs and encoder offsets sourced from
@@ -51,6 +52,7 @@ public final class Robots {
           .mass(74.0, 6.0)
           .camera(
               "OV9281", new Transform3d(0.3, 0, 0.25, new Rotation3d(0, Math.toRadians(-15), 0)))
+          .visionConfig(VisionConfig.builder().enabledByDefault(false).build())
           .build();
 
   public static final DrivetrainConfig FUEL =
