@@ -219,12 +219,22 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   public Command driveFieldCentric(DoubleSupplier vx, DoubleSupplier vy, DoubleSupplier omega) {
     return run(
         () -> {
+          double rawVx = vx.getAsDouble();
+          double rawVy = vy.getAsDouble();
+          double rawOmega = omega.getAsDouble();
+
+          // Idle when no input — avoids commanding a target angle that causes module oscillation
+          if (rawVx == 0 && rawVy == 0 && rawOmega == 0) {
+            setControl(idleRequest);
+            return;
+          }
+
           double scale = getVoltageSpeedScale();
           setControl(
               fieldCentricRequest
-                  .withVelocityX(vx.getAsDouble() * scale)
-                  .withVelocityY(vy.getAsDouble() * scale)
-                  .withRotationalRate(omega.getAsDouble()));
+                  .withVelocityX(rawVx * scale)
+                  .withVelocityY(rawVy * scale)
+                  .withRotationalRate(rawOmega));
         });
   }
 
@@ -850,10 +860,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         }
       }
 
-      // Module alignment error
+      // Module alignment error (skip when target speed is near zero — angle is meaningless)
+      double targetSpeed = Math.abs(moduleTargets[i].speedMetersPerSecond);
       double angleError =
           Math.abs(moduleTargets[i].angle.minus(moduleStates[i].angle).getDegrees());
-      boolean alignmentWarn = angleError > diag.alignmentErrorWarnDeg;
+      boolean alignmentWarn = targetSpeed > 0.1 && angleError > diag.alignmentErrorWarnDeg;
       if (fullLogCycle) {
         String diagPrefix = "Drive/Diagnostics/" + name + "/";
         Logger.recordOutput(diagPrefix + "AlignmentWarn", alignmentWarn);
