@@ -114,6 +114,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   private boolean lastAllHealthy = true;
   private String lastStatusMessage = "Ready";
 
+  // Commanded velocity tracking (for actual vs expected logging)
+  private double commandedVx;
+  private double commandedVy;
+  private double commandedOmega;
+
   // SignalLogger pre-allocated arrays (avoid GC churn)
   private final double[] signalLogPose = new double[3];
   private final double[] signalLogSpeeds = new double[3];
@@ -254,11 +259,14 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
           }
 
           double scale = getVoltageSpeedScale();
+          commandedVx = rawVx * scale;
+          commandedVy = rawVy * scale;
+          commandedOmega = rawOmega;
           setControl(
               fieldCentricRequest
-                  .withVelocityX(rawVx * scale)
-                  .withVelocityY(rawVy * scale)
-                  .withRotationalRate(rawOmega));
+                  .withVelocityX(commandedVx)
+                  .withVelocityY(commandedVy)
+                  .withRotationalRate(commandedOmega));
           Logger.recordOutput("Drive/Input/RequestType", "FieldCentric");
         });
   }
@@ -695,6 +703,23 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
           "Drive/AngularRateDegPerSec", Math.toDegrees(speeds.omegaRadiansPerSecond));
       Logger.recordOutput(
           "Drive/OdometryHz", inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0);
+
+      // Commanded vs actual velocity comparison
+      // Commanded is field-centric, so rotate actual to field frame for comparison
+      Logger.recordOutput("Drive/Velocity/CommandedVx", commandedVx);
+      Logger.recordOutput("Drive/Velocity/CommandedVy", commandedVy);
+      Logger.recordOutput("Drive/Velocity/CommandedOmega", commandedOmega);
+      Logger.recordOutput("Drive/Velocity/ActualVx", speeds.vxMetersPerSecond);
+      Logger.recordOutput("Drive/Velocity/ActualVy", speeds.vyMetersPerSecond);
+      Logger.recordOutput("Drive/Velocity/ActualOmega", speeds.omegaRadiansPerSecond);
+      Logger.recordOutput("Drive/Velocity/ErrorVx", commandedVx - speeds.vxMetersPerSecond);
+      Logger.recordOutput("Drive/Velocity/ErrorVy", commandedVy - speeds.vyMetersPerSecond);
+      Logger.recordOutput("Drive/Velocity/ErrorOmega", commandedOmega - speeds.omegaRadiansPerSecond);
+      double commandedSpeed = Math.hypot(commandedVx, commandedVy);
+      Logger.recordOutput("Drive/Velocity/CommandedSpeedMps", commandedSpeed);
+      Logger.recordOutput("Drive/Velocity/SpeedErrorMps", commandedSpeed - linearSpeed);
+      Logger.recordOutput("Drive/Velocity/SpeedErrorPercent",
+          commandedSpeed > 0.01 ? (commandedSpeed - linearSpeed) / commandedSpeed * 100.0 : 0);
     }
   }
 
