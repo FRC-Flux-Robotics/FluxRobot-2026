@@ -224,7 +224,8 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
           double rawOmega = omega.getAsDouble();
 
           // Idle when no input — avoids commanding a target angle that causes module oscillation
-          if (rawVx == 0 && rawVy == 0 && rawOmega == 0) {
+          if (Math.hypot(rawVx, rawVy) < fieldCentricRequest.Deadband
+              && Math.abs(rawOmega) < fieldCentricRequest.RotationalDeadband) {
             setControl(idleRequest);
             return;
           }
